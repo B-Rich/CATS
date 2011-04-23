@@ -1,0 +1,9 @@
+Borland Delphi Version 15.0
+Copyright (c) 1983,2002 Borland Software Corporation
+do34.dpr(1) do34.dpr(1) do34.dpr(1) do34.dpr(2) Hint: Variable 'rr' is declared but never used in 'PROGRAM'
+do34.dpr(3) Hint: Variable 'x' is declared but never used in 'PROGRAM'
+do34.dpr(3) Hint: Variable 'y' is declared but never used in 'PROGRAM'
+do34.dpr(3) Hint: Variable 'r' is declared but never used in 'PROGRAM'
+do34.dpr(4) Hint: Variable 'drr' is declared but never used in 'PROGRAM'
+do34.dpr(17) 
+18 lines, 0.05 seconds, 11132 bytes code, 1809 bytes data.

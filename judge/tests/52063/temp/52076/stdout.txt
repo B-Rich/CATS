@@ -1,0 +1,9 @@
+Borland Delphi Version 15.0
+Copyright (c) 1983,2002 Borland Software Corporation
+do24.dpr(1) do24.dpr(1) do24.dpr(1) do24.dpr(2) do24.dpr(2) do24.dpr(2) do24.dpr(2) do24.dpr(2) do24.dpr(2) do24.dpr(3) do24.dpr(5) Hint: Variable 'p' is declared but never used in 'PROGRAM'
+do24.dpr(6) Hint: Variable 'maxr' is declared but never used in 'PROGRAM'
+do24.dpr(6) Hint: Variable 'cx' is declared but never used in 'PROGRAM'
+do24.dpr(6) Hint: Variable 'cy' is declared but never used in 'PROGRAM'
+do24.dpr(6) Hint: Variable 'j' is declared but never used in 'PROGRAM'
+do24.dpr(29) 
+30 lines, 0.24 seconds, 29920 bytes code, 4189 bytes data.

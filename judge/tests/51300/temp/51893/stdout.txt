@@ -1,0 +1,4 @@
+Borland Delphi Version 15.0
+Copyright (c) 1983,2002 Borland Software Corporation
+do16.dpr(1) do16.dpr(1) do16.dpr(1) do16.dpr(2) do16.dpr(2) do16.dpr(2) do16.dpr(2) do16.dpr(2) do16.dpr(2) do16.dpr(3) do16.dpr(43) 
+44 lines, 0.24 seconds, 29972 bytes code, 3797 bytes data.

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="Windows-1251"?>
+<CATS version="1.0">
+
+<Problem title="JudgeTest (Small Addition)" lang="en"
+  author="M. Rozhkov" tlimit="2" mlimit="1"
+  inputFile="input.txt" outputFile="output.txt">
+
+<ProblemStatement>
+</ProblemStatement>
+
+<InputFormat>
+</InputFormat>
+
+<OutputFormat>
+</OutputFormat>
+
+<ProblemConstraints>
+</ProblemConstraints>
+
+<Sample rank="1">
+  <SampleIn>1 2
+</SampleIn>
+  <SampleOut>3</SampleOut>
+</Sample>
+
+<Sample rank="2">
+  <SampleIn>3 4
+</SampleIn>
+  <SampleOut>7</SampleOut>
+</Sample>
+
+<Solution name="sol" src="sa.dpr"/>
+
+<Generator name="gen" src="sa_gen.dpr" de_code="203"/>
+
+<Checker src="sa_check.dpr" de_code="203"/>
+
+<TestRange from="1" to="2">
+<In src="%0n.in"/><Out src="%0n.out"/></TestRange>
+<TestRange from="3" to="4">
+<In use="gen1" param="%n"/><Out use="sol1"/></TestRange>
+            
+</Problem>
+</CATS>

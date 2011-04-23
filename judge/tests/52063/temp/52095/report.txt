@@ -1,0 +1,19 @@
+
+--------------- Spawner report ---------------
+Application:           C:\Program Files\Borland\Delphi7\Bin\dcc32.exe
+Parameters:            -CC do43.dpr
+SecurityLevel:         1
+CreateProcessMethod:   CreateProcessAsUser
+UserName:              acm3
+UserTimeLimit:         Infinity
+DeadLine:              20.000000 (sec)
+MemoryLimit:           10.000000 (Mb)
+WriteLimit:            10.000000 (Mb)
+----------------------------------------------
+UserTime:              0.020029 (sec)
+PeakMemoryUsed:        1.199219 (Mb)
+Written:               0.016784 (Mb)
+TerminateReason:       ExitProcess
+ExitStatus:            0
+----------------------------------------------
+SpawnerError:          <none>

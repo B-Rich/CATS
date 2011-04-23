@@ -1,0 +1,4 @@
+Borland Delphi Version 15.0
+Copyright (c) 1983,2002 Borland Software Corporation
+do33.dpr(1) do33.dpr(1) do33.dpr(1) do33.dpr(36) 
+37 lines, 0.05 seconds, 11312 bytes code, 3017 bytes data.

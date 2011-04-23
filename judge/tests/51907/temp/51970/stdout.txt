@@ -1,0 +1,4 @@
+Borland Delphi Version 15.0
+Copyright (c) 1983,2002 Borland Software Corporation
+sa_check.dpr(1) sa_check.dpr(1) sa_check.dpr(1) sa_check.dpr(2) sa_check.dpr(2) sa_check.dpr(2) sa_check.dpr(2) sa_check.dpr(2) sa_check.dpr(4) sa_check.dpr(29) 
+30 lines, 0.31 seconds, 30360 bytes code, 4349 bytes data.

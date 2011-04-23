@@ -1,0 +1,4 @@
+Borland Delphi Version 15.0
+Copyright (c) 1983,2002 Borland Software Corporation
+sa_gen.dpr(1) sa_gen.dpr(1) sa_gen.dpr(1) sa_gen.dpr(6) 
+7 lines, 0.06 seconds, 11356 bytes code, 1801 bytes data.

@@ -1,0 +1,6 @@
+Borland Delphi Version 15.0
+Copyright (c) 1983,2002 Borland Software Corporation
+do18.dpr(1) do18.dpr(1) do18.dpr(1) do18.dpr(2) do18.dpr(2) do18.dpr(2) do18.dpr(2) do18.dpr(2) do18.dpr(2) do18.dpr(3) do18.dpr(5) Hint: Variable 'p' is declared but never used in 'PROGRAM'
+do18.dpr(6) Hint: Variable 'j' is declared but never used in 'PROGRAM'
+do18.dpr(45) 
+46 lines, 0.24 seconds, 30012 bytes code, 3397 bytes data.

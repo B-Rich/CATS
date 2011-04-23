@@ -1,0 +1,4 @@
+Borland Delphi Version 15.0
+Copyright (c) 1983,2002 Borland Software Corporation
+f_al_short.dpr(1) f_al_short.dpr(1) f_al_short.dpr(1) f_al_short.dpr(1) f_al_short.dpr(1) f_al_short.dpr(1) f_al_short.dpr(1) f_al_short.dpr(1) f_al_short.dpr(1) f_al_short.dpr(3) f_al_short.dpr(34) 
+35 lines, 0.27 seconds, 30528 bytes code, 4701 bytes data.
