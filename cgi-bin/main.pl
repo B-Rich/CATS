@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+#-*-mode: Perl; coding: koi8-r;-*-
 use strict;
 use warnings;
 no warnings 'redefine';
@@ -18,11 +19,15 @@ use Data::Dumper;
 use Storable ();
 use Time::HiRes;
 use List::Util qw(max);
+use Git::Repository;
 
-my $cats_lib_dir;
+my ($cats_lib_dir, $cats_git_storage);
 BEGIN {
+    local $/ = '/';
     $cats_lib_dir = $ENV{CATS_DIR} || '.';
-    $cats_lib_dir =~ s/\/$//;
+    $cats_git_storage = $ENV{CATS_GIT_STORAGE} || './cats-git';
+    chomp($cats_git_storage, $cats_lib_dir);
+
     $Data::Dumper::Terse = 1;
     $Data::Dumper::Indent = 1;
 }
