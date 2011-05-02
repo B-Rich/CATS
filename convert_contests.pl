@@ -26,18 +26,22 @@ unless (-d "$cats_git_storage/contests") {
 }
 
 my $contests_id_ref = $dbh->selectcol_arrayref("SELECT id FROM contests");
+my $i = 1;
 foreach my $cid (@$contests_id_ref) {
-    print "Converting contest #$cid\n";
+    print "[$i/" . @$contests_id_ref . "] Converting contest #$cid\n";
     my $rep_path = "$cats_git_storage/contests/$cid/";
     Git::Repository->run(init => $rep_path); # create repo
-    my $rep = Git::Repository->new(work_tree => $rep_path);
-    
+    my $rep = Git::Repository->new(work_tree => $rep_path, {
+        env => {
+            GIT_COMMITTER_NAME => 'CATS',
+            GIT_COMMITTER_EMAIL => 'klenin@imcs.dvgu.ru',
+        }
+    });
     my $problems_id_ref = $dbh->selectcol_arrayref("
 SELECT problem_id FROM contest_problems WHERE contest_id=?
 UNION
 SELECT problem_id FROM reqs WHERE contest_id=?", undef, $cid, $cid);
     foreach my $pid (@$problems_id_ref) {
-        print "\tMkdir for problem #$pid\n";
         mkdir "$rep_path/$pid";
     }
     
@@ -49,20 +53,21 @@ SELECT problem_id FROM reqs WHERE contest_id=?", undef, $cid, $cid);
     foreach my $cdr (@$commits_data_ref) {
         my ($uid, $login, $email, $src, $pid) = @$cdr;
         my $fname = "$pid/$uid";
+
         open(SRC, ">", $rep_path . $fname);
         binmode(SRC, ":raw");
         print SRC $src;
         close SRC;
-        print "Adding.. $fname($login)\n";
+
         $rep->run(add => $fname);
-        $rep->run('commit', '--allow-empty-message', '-m', '""',
-                  {
-                      env => {
-                          GIT_COMMITTER_NAME  => $login,
-                          GIT_COMMITTER_EMAIL => $email
-                      }
-                  });
+        $rep->run('commit', '--allow-empty-message', '-m', '', {
+            env => {
+                GIT_AUTHOR_NAME => $login,
+                GIT_AUTHOR_EMAIL => $email || '',
+            }
+        });
     }
+    ++$i;
 }
 print "Contests processed: " . @$contests_id_ref;
 
