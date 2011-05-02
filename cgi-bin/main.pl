@@ -195,6 +195,9 @@ sub contests_new_save
     my $cid = new_id;
     # free_registration => closed
     $p->{free_registration} = !$p->{free_registration};
+
+    Git::Repository->run("init", "$cats_git_storage/contests/$cid");
+
     $dbh->do(qq~
         INSERT INTO contests (
             id, title, start_date, freeze_date, finish_date, defreeze_date, rules, max_reqs,
