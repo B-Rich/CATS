@@ -32,7 +32,10 @@ foreach my $cid (@$contests_id_ref) {
     Git::Repository->run(init => $rep_path); # create repo
     my $rep = Git::Repository->new(work_tree => $rep_path);
     
-    my $problems_id_ref = $dbh->selectcol_arrayref("SELECT problem_id FROM contest_problems WHERE contest_id=?", undef, $cid);
+    my $problems_id_ref = $dbh->selectcol_arrayref("
+SELECT problem_id FROM contest_problems WHERE contest_id=?
+UNION
+SELECT problem_id FROM reqs WHERE contest_id=?", undef, $cid, $cid);
     foreach my $pid (@$problems_id_ref) {
         print "\tMkdir for problem #$pid\n";
         mkdir "$rep_path/$pid";
@@ -54,11 +57,11 @@ foreach my $cid (@$contests_id_ref) {
         $rep->run(add => $fname);
         $rep->run('commit', '--allow-empty-message', '-m', '""',
                   {
-                      env => {GIT_COMMITTER_NAME  => $login,
-                              GIT_COMMITTER_EMAIL => $email
+                      env => {
+                          GIT_COMMITTER_NAME  => $login,
+                          GIT_COMMITTER_EMAIL => $email
                       }
                   });
-        #print "$login Haz email!" if $email;
     }
 }
 print "Contests processed: " . @$contests_id_ref;
