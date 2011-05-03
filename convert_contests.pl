@@ -31,13 +31,12 @@ SELECT
 FROM
     RDB$RELATION_FIELDS
 WHERE
-    RDB$RELATION_FIELDS.RDB$RELATION_NAME = UPPER('contests')
+    RDB$RELATION_FIELDS.RDB$RELATION_NAME = UPPER('sources')
     AND RDB$RELATION_FIELDS.RDB$FIELD_NAME = UPPER('revspec');
 ~);
 unless (@hasfield) {
-    print "not has!\n";
     my $a = $dbh->do("ALTER TABLE sources ADD revspec VARCHAR(40)");
-    print "affected $a\n";
+    print "created column $a\n";
     $dbh->commit or die $dbh->errstr;
 }
 
@@ -82,8 +81,10 @@ SELECT problem_id FROM reqs WHERE contest_id=?", undef, $cid, $cid);
                 GIT_AUTHOR_EMAIL => $email || '',
             }
         });
-        my $revspec = $rep->command('rev-list', '-n', 1, 'HEAD')->stdout->getline();
-        $dbh->do("UPDATE sources SET revspec=? WHERE req_id=?", undef, $revspec, $rid);
+	open(HEAD, "<", "${rep_path}.git/refs/heads/master");
+        $dbh->do("UPDATE sources SET revspec=? WHERE req_id=?", undef, scalar <HEAD>, $rid);
+	close HEAD;
+        $dbh->commit or die $dbh->errstr;
     }
     ++$i;
 }
