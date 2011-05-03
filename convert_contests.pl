@@ -25,6 +25,22 @@ unless (-d "$cats_git_storage/contests") {
     mkdir "$cats_git_storage/contests";
 }
 
+my @hasfield = $dbh->selectrow_array(q~
+SELECT
+    RDB$RELATION_FIELDS.RDB$FIELD_NAME
+FROM
+    RDB$RELATION_FIELDS
+WHERE
+    RDB$RELATION_FIELDS.RDB$RELATION_NAME = UPPER('contests')
+    AND RDB$RELATION_FIELDS.RDB$FIELD_NAME = UPPER('revspec');
+~);
+unless (@hasfield) {
+    print "not has!\n";
+    my $a = $dbh->do("ALTER TABLE sources ADD revspec VARCHAR(40)");
+    print "affected $a\n";
+    $dbh->commit or die $dbh->errstr;
+}
+
 my $contests_id_ref = $dbh->selectcol_arrayref("SELECT id FROM contests");
 my $i = 1;
 foreach my $cid (@$contests_id_ref) {
@@ -45,13 +61,13 @@ SELECT problem_id FROM reqs WHERE contest_id=?", undef, $cid, $cid);
         mkdir "$rep_path/$pid";
     }
     
-    my $commits_data_ref = $dbh->selectall_arrayref("SELECT a.id, a.login, a.email, s.src, r.problem_id from
+    my $commits_data_ref = $dbh->selectall_arrayref("SELECT r.id, a.id, a.login, a.email, s.src, r.problem_id from
         sources s inner join reqs r on s.req_id=r.id
         inner join accounts a on r.account_id=a.id
         where r.contest_id = ?
         order by r.submit_time", undef, $cid);
     foreach my $cdr (@$commits_data_ref) {
-        my ($uid, $login, $email, $src, $pid) = @$cdr;
+        my ($rid, $uid, $login, $email, $src, $pid) = @$cdr;
         my $fname = "$pid/$uid";
 
         open(SRC, ">", $rep_path . $fname);
@@ -66,8 +82,9 @@ SELECT problem_id FROM reqs WHERE contest_id=?", undef, $cid, $cid);
                 GIT_AUTHOR_EMAIL => $email || '',
             }
         });
+        my $revspec = $rep->command('rev-list', '-n', 1, 'HEAD')->stdout->getline();
+        $dbh->do("UPDATE sources SET revspec=? WHERE req_id=?", undef, $revspec, $rid);
     }
     ++$i;
 }
-print "Contests processed: " . @$contests_id_ref;
 
