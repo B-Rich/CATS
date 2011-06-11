@@ -19,7 +19,6 @@ use Data::Dumper;
 use Storable ();
 use Time::HiRes;
 use List::Util qw(max);
-use Git::Repository;
 
 my ($cats_lib_dir, $cats_git_storage);
 BEGIN {
@@ -41,6 +40,7 @@ use CATS::DevEnv;
 use CATS::Misc qw(:all);
 use CATS::Utils qw(coalesce escape_html url_function state_to_display param_on);
 use CATS::Data qw(:all);
+use CATS::Git qw(get_log_dump_from_revspec);
 use CATS::IP;
 use CATS::Problem;
 use CATS::RankTable;
@@ -2536,10 +2536,11 @@ sub get_contest_info
 
 sub get_log_dump
 {
-    my ($rid, $compile_error) = @_;
-    my ($dump) = $dbh->selectrow_array(qq~
-        SELECT dump FROM log_dumps WHERE req_id = ?~, {},
-        $rid) or return ();
+    my ($contest_id, $problem_id, $account_id, $rid, $compile_error) = @_;
+    my ($dump_revspec) = $dbh->selectrow_array(qq~
+        SELECT dump_revspec FROM log_dumps WHERE req_id = ?~, {},
+                                       $rid) or return ();
+    my $dump = get_log_dump_from_revspec($contest_id, $problem_id, $account_id, $dump_revspec);
     $dump = Encode::decode('CP1251', $dump);
     $dump =~ s/(?:.|\n)+spawner\\sp\s((?:.|\n)+)compilation error\n/$1/m
         if $compile_error;
@@ -2577,7 +2578,8 @@ sub run_details_frame
             if $_->{contest_id} != $contest->{id};
         push @runs,
             $_->{state} == $cats::st_compilation_error ?
-            { get_log_dump($_->{req_id}, 1) } : get_run_info($contest, $_->{req_id});
+              { get_log_dump($_->{contest_id}, $_->{problem_id}, $_->{account_id}, $_->{req_id}, 1) }
+              : get_run_info($contest, $_->{req_id});
     }
     $t->param(sources_info => $si, runs => \@runs);
 }
@@ -2701,7 +2703,7 @@ sub run_log_frame
     $t->param(sources_info => [$si]);
 
     source_links($si, 1);
-    $t->param(get_log_dump($rid));
+    $t->param(get_log_dump($si->{contest_id}, $si->{problem_id}, $si->{account_id}, $rid));
 
     my $tests = $dbh->selectcol_arrayref(qq~
         SELECT rank FROM tests WHERE problem_id = ? ORDER BY rank~, {},
