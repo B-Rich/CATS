@@ -40,7 +40,7 @@ use CATS::DevEnv;
 use CATS::Misc qw(:all);
 use CATS::Utils qw(coalesce escape_html url_function state_to_display param_on);
 use CATS::Data qw(:all);
-use CATS::Git qw(get_log_dump_from_revspec);
+use CATS::Git qw(get_log_dump_from_hash put_source_in_repository);
 use CATS::IP;
 use CATS::Problem;
 use CATS::RankTable;
@@ -974,13 +974,14 @@ sub problems_submit
         {},
         $rid, $submit_uid, $pid, $cid, $cats::st_not_processed, 0);
 
+    my ($revision, $hash) = put_source_in_repository($cid, $pid, $submit_uid, $src);
     my $s = $dbh->prepare(qq~
-        INSERT INTO sources(req_id, de_id, src, fname, hash) VALUES (?,?,?,?,?)~);
+        INSERT INTO sources(req_id, de_id, revision, fname, hash) VALUES (?,?,?,?,?)~);
     $s->bind_param(1, $rid);
     $s->bind_param(2, $did);
-    $s->bind_param(3, $src, { ora_type => 113 } ); # blob
+    $s->bind_param(3, $revision);
     $s->bind_param(4, "$file");
-    $s->bind_param(5, $source_hash);
+    $s->bind_param(5, $hash);
     $s->execute;
     $dbh->commit;
 
@@ -2536,11 +2537,11 @@ sub get_contest_info
 
 sub get_log_dump
 {
-    my ($contest_id, $problem_id, $account_id, $rid, $compile_error) = @_;
-    my ($dump_revspec) = $dbh->selectrow_array(qq~
-        SELECT dump_revspec FROM log_dumps WHERE req_id = ?~, {},
+    my ($contest_id, $rid, $compile_error) = @_;
+    my ($hash) = $dbh->selectrow_array(qq~
+        SELECT hash FROM log_dumps WHERE req_id = ?~, {},
                                        $rid) or return ();
-    my $dump = get_log_dump_from_revspec($contest_id, $problem_id, $account_id, $dump_revspec);
+    my $dump = get_log_dump_from_hash($contest_id, $hash);
     $dump = Encode::decode('CP1251', $dump);
     $dump =~ s/(?:.|\n)+spawner\\sp\s((?:.|\n)+)compilation error\n/$1/m
         if $compile_error;
@@ -2578,7 +2579,7 @@ sub run_details_frame
             if $_->{contest_id} != $contest->{id};
         push @runs,
             $_->{state} == $cats::st_compilation_error ?
-              { get_log_dump($_->{contest_id}, $_->{problem_id}, $_->{account_id}, $_->{req_id}, 1) }
+              { get_log_dump($_->{contest_id}, $_->{req_id}, 1) }
               : get_run_info($contest, $_->{req_id});
     }
     $t->param(sources_info => $si, runs => \@runs);
@@ -2703,7 +2704,7 @@ sub run_log_frame
     $t->param(sources_info => [$si]);
 
     source_links($si, 1);
-    $t->param(get_log_dump($si->{contest_id}, $si->{problem_id}, $si->{account_id}, $rid));
+    $t->param(get_log_dump($si->{contest_id}, $rid));
 
     my $tests = $dbh->selectcol_arrayref(qq~
         SELECT rank FROM tests WHERE problem_id = ? ORDER BY rank~, {},

@@ -10,7 +10,7 @@ use CATS::Misc qw(:all);
 use CATS::Utils qw(state_to_display);
 use CATS::Contest;
 use CATS::IP;
-use CATS::Git qw(put_source_in_source_info);
+use CATS::Git qw(get_source_from_hash);
 
 BEGIN
 {
@@ -92,7 +92,7 @@ sub get_sources_info
     @req_ids = map +$_, grep $_ && /^\d+$/, @req_ids;
     @req_ids or return;
 
-    my $src = $p{get_source} ? ' S.src_revspec, DE.syntax,' : '';
+    my $src = $p{get_source} ? ' S.hash, DE.syntax,' : '';
 
     # SELECT ... WHERE ... req_id IN (1,2,3) тормозит в Firebird 1.5,
     # поэтому выполяем цикл вручную.
@@ -137,7 +137,7 @@ sub get_sources_info
         #$r->{src} =~ s/</&lt;/;
         if ($p{get_source})
         {
-            put_source_in_source_info($r);
+            $r->{src} = get_source_from_hash($r->{contest_id}, $r->{hash});
         }
         $r = {
             %$r, state_to_display($r->{state}),

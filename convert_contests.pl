@@ -37,18 +37,32 @@ sub hasfield {
 sub addfield {
     my ($table, $field) = @_;
     unless (hasfield($table, $field)) {
-        my $rows_affected = $dbh->do("ALTER TABLE $table ADD $field VARCHAR(40)");
-        die "failed to create column $field" unless defined $rows_affected;
-        print "created column $field\n";
+        my $rows_affected = $dbh->do("ALTER TABLE $table ADD $field CHAR(40)"); # revspec
+        die "failed to create column $field in table $table" unless defined $rows_affected;
+        print "created column $field in table $table\n";
     }
     $dbh->commit or die $dbh->errstr;
 }
 
+sub delfield {
+    my ($table, $field) = @_;
+    if (hasfield($table, $field)) {
+        my $rows_affected = $dbh->do("ALTER TABLE $table DROP $field"); # revspec
+        die "failed to delte column $field from table $table" unless defined $rows_affected;
+        print "deleted column $field in table $table\n";
+    }
+}
+
 
 sub addfields {
-    my (%tablefields) = @_;
-    while (my ($table, $field) = each %tablefields) {
-        addfield($table, $field);
+    for my $pair (@_) {
+        addfield(reverse @$pair);
+    }
+}
+
+sub delfields {
+    for my $pair (@_) {
+        delfield(reverse @$pair);
     }
 }
 
@@ -99,16 +113,22 @@ sub convert_users_attempts {
             print "Skipped log dump on rid $rid" if $@;
             open(LOG, ">", $rep_path . $logfname);
             binmode(LOG, ":raw");
-            print LOG ($log || "");
+            print LOG ($log || "Log was too big");
             close LOG;
 
+            my $src_sha = $rep->hash_and_insert_object($rep_path . $fname);
+            my $log_sha = $rep->hash_and_insert_object($rep_path . $logfname);
             $rep->command(add => $fname);
             $rep->command(add => $logfname);
-            $rep->command(commit => '--allow-empty-message', "--author='$login <$email>'",  '-m', '');
+            eval {
+                $rep->command(commit => '--allow-empty-message', "--author='$login <$email>'",  '-m', '');
+            };
+            die "src was:\n $src \n log was: \n $log \n rid: $rid" if $@;
             open(HEAD, "<", "${rep_path}.git/refs/heads/master");
-            $dbh->do("UPDATE sources SET src_revspec=? WHERE req_id=?", undef, scalar <HEAD>, $rid);
-            $dbh->do("UPDATE log_dumps SET dump_revspec=? WHERE req_id=?", undef, scalar <HEAD>, $rid); # causes redundancy (!)
+            my $revision = <HEAD>;
             close HEAD;
+            $dbh->do("UPDATE sources SET revision=?, hash=? WHERE req_id=?", undef, $revision, $src_sha, $rid);
+            $dbh->do("UPDATE log_dumps SET hash=? WHERE req_id=?", undef, $log_sha, $rid); # causes redundancy (!)
             $dbh->commit or die $dbh->errstr;
         }
         ++$i;
@@ -127,10 +147,22 @@ sub convert_fields {
 
 
 CATS::DB::sql_connect;
-my %tablefields = (
-    'sources' => 'src_revspec',
-    'log_dumps' => 'dump_revspec',
-    #'problem_sources', => 'src_revspec'
+
+my @fields_to_delete_pre = (
+    ['hash' => 'sources'],
     );
-addfields(%tablefields);
+
+my @fields_to_add = (
+    ['revision' => 'sources'],
+    ['hash' => 'sources'],
+#    'log_dumps' => 'revision', for now hash is enough
+    ['hash' => 'log_dumps'],
+    );
+
+my @fields_to_delete_post = (
+    );
+
+delfields(@fields_to_delete_pre);
+addfields(@fields_to_add);
 convert_fields;
+delfields(@fields_to_delete_post);
