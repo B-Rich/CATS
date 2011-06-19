@@ -39,7 +39,9 @@ use CATS::DevEnv;
 use CATS::Misc qw(:all);
 use CATS::Utils qw(coalesce escape_html url_function state_to_display param_on);
 use CATS::Data qw(:all);
-use CATS::Git qw(get_log_dump_from_hash put_source_in_repository get_problem_zip diff_files cpa_from_source_info);
+use CATS::Git qw(get_log_dump_from_hash put_source_in_repository 
+    get_problem_zip diff_files cpa_from_source_info
+    create_contest_repository contest_repository_path);
 use CATS::IP;
 use CATS::Problem;
 use CATS::RankTable;
@@ -195,7 +197,7 @@ sub contests_new_save
     # free_registration => closed
     $p->{free_registration} = !$p->{free_registration};
 
-    Git::Repository->run("init", "$cats_git_storage/contests/$cid");
+    create_contest_repository($cid);
 
     $dbh->do(qq~
         INSERT INTO contests (
