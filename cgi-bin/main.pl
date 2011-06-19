@@ -600,16 +600,21 @@ sub add_problem_to_contest
 {
     my ($pid, $problem_code) = @_;
     CATS::StaticPages::invalidate_problem_text(cid => $cid);
-    return $dbh->do(qq~
+    my $affected = $dbh->do(qq~
         INSERT INTO contest_problems(id, contest_id, problem_id, code, status)
             VALUES (?,?,?,?,?)~, {},
         new_id, $cid, $pid, $problem_code,
         # Если не-архивный турнир уже идёт, добавляемые задачи сразу получают статус hidden
         $contest->{time_since_start} > 0 && $contest->{ctype} == 0 ?
             $cats::problem_st_hidden : $cats::problem_st_ready);
+    if ($affected)
+    {
+        my $dir = contest_repository_path($cid) . "/$pid";
+        mkdir $dir unless -d $dir;        
+    }
+    return $affected;
 }
-
-
+ 
 sub save_uploaded_file
 {
     my ($file) = @_;
