@@ -15,6 +15,7 @@ use CATS::Utils qw(escape_html);
 use CATS::BinaryFile;
 use CATS::DevEnv;
 use FormalInput;
+use CATS::Git qw(create_problem_repository put_problem_zip);
 
 use fields qw(
     contest_id id import_log debug problem checker
@@ -96,6 +97,9 @@ sub load
     }
     else
     {
+        create_problem_repository($self->{id}) if $self->{replace};
+        put_problem_zip($self->{id}, $self->{zip});
+
         $dbh->commit unless $self->{debug};
         $self->note('Success');
         return 0;
@@ -658,7 +662,6 @@ sub end_tag_Problem
     $self->validate;
     
     return if $self->{debug};
-    
     if ($self->{replace})
     {
         delete_child_records($self->{id});

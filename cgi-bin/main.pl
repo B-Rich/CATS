@@ -40,7 +40,7 @@ use CATS::DevEnv;
 use CATS::Misc qw(:all);
 use CATS::Utils qw(coalesce escape_html url_function state_to_display param_on);
 use CATS::Data qw(:all);
-use CATS::Git qw(get_log_dump_from_hash put_source_in_repository);
+use CATS::Git qw(get_log_dump_from_hash put_source_in_repository get_problem_zip);
 use CATS::IP;
 use CATS::Problem;
 use CATS::RankTable;
@@ -841,17 +841,9 @@ sub download_problem
         SELECT hash FROM problems WHERE id = ?~, undef, $pid);
     my $already_hashed = ensure_problem_hash($pid, \$hash);
     my $fname = "./download/pr/problem_$hash.zip";
-    unless($already_hashed && -f $fname)
-    {
-        my ($zip) = eval { $dbh->selectrow_array(qq~
-            SELECT zip_archive FROM problems WHERE id = ?~, undef, $pid); };
-        if ($@)
-        {
-            print header(), $@;
-            return;
-        }
-        CATS::BinaryFile::save(cats_dir() . $fname, $zip);
-    }
+
+    get_problem_zip($pid, cats_dir() . $fname) unless($already_hashed && -f $fname);
+
     print redirect(-uri => $fname);
     -1;
 }

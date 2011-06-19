@@ -158,7 +158,7 @@ sub balance_tags
 
 
 sub source_hash
-{ # HACK: п╜я┌п╬ я┌п╬я┤п╫п╟я▐ п╦п╪п╪п╦я┌п╟я├п╦я▐ я┌п╬пЁп╬, п╨п╟п╨ Git я┘п╣я┬п╦я─я┐п╣я┌ blob'я▀
+{ # Это точная имитация хеширования BLOB-ов в Git
     my $content  = Encode::encode_utf8($_[0]);
     return sha1_hex('blob' . ' ' . length($content) . "\0" . $content);
 }
