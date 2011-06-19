@@ -11,7 +11,7 @@ do
     rm -r $dir
     mv $cdir $dir
 done
-chown -R .
+chown $HTTP_USER:$HTTP_USER -R .
 
 cd "$CATS_GIT_STORAGE/problems"
 for dir in `ls ./`
@@ -23,4 +23,4 @@ do
     rm -r $dir
     mv $cdir $dir
 done
-chown -R .
+chown $HTTP_USER:$HTTP_USER -R .

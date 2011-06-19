@@ -1,0 +1,20 @@
+<TMPL_INCLUDE 'includes/menu_begin.inc'>
+
+<table width="100%" cellpadding="2" cellspacing="1" class="bordered">
+<tr bgcolor="#ccccff">
+<th width="2%"></th>
+<th width="40%">Хэш коммита</th>
+<th width="25%">Автор изменения</th>
+<th width="23%">email</th>
+<th width="10%">Дата изменения</th>
+</tr>
+
+<TMPL_LOOP history><tr bgcolor=<TMPL_IF odd>"#f0f0f0"<TMPL_ELSE>"#ffffff"</TMPL_IF>>
+<td><TMPL_VAR __counter__></td>
+<td><a href="<TMPL_VAR href_download>"><TMPL_VAR hash></a></td>
+<td><TMPL_VAR login></td>
+<td><TMPL_VAR email></td>
+<td><TMPL_VAR date></td>
+</tr></TMPL_LOOP>
+</table>
+<TMPL_INCLUDE 'includes/menu_end.inc'>

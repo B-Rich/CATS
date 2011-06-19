@@ -41,7 +41,8 @@ use CATS::Utils qw(coalesce escape_html url_function state_to_display param_on);
 use CATS::Data qw(:all);
 use CATS::Git qw(get_log_dump_from_hash put_source_in_repository 
     get_problem_zip diff_files cpa_from_source_info
-    create_contest_repository contest_repository_path);
+    create_contest_repository contest_repository_path
+    get_problem_history);
 use CATS::IP;
 use CATS::Problem;
 use CATS::RankTable;
@@ -701,7 +702,7 @@ sub problems_replace
         or return msg(53);
     my ($contest_id, $old_title) = $dbh->selectrow_array(qq~
         SELECT contest_id, title FROM problems WHERE id=?~, {}, $pid);
-     
+
     # Запрет на замену прилинкованных задач. По-первых, для надёжности,
     # а во-вторых, это секурити -- чтобы не проверять is_jury($contest_id).
     $contest_id == $cid
@@ -711,6 +712,7 @@ sub problems_replace
     my CATS::Problem $p = CATS::Problem->new;
     $p->{old_title} = $old_title unless param('allow_rename');
     my $error = $p->load($fname, $cid, $pid, 1);
+    
     $t->param(problem_import_log => $p->encoded_import_log());
 
     $error ? $dbh->rollback : $dbh->commit;
@@ -1230,7 +1232,6 @@ sub problems_retest_frame
     $t->param(total_queue => $total_queue);
 }
 
-
 sub problems_frame
 {
     my $my_is_team =
@@ -1353,6 +1354,7 @@ sub problems_frame
             href_change_code => url_f('problems', 'change_code' => $c->{cpid}),
             href_replace  => url_f('problems', replace => $c->{cpid}),
             href_download => url_f('problems', download => $c->{pid}),
+            href_history => url_f('problems_history', pid => $c->{pid}),
             href_compare_tests => $is_jury && url_f('compare_tests', pid => $c->{pid}),
             href_original_contest =>
                 url_function('problems', sid => $sid, cid => $c->{original_contest_id}, set_contest => 1),
@@ -1417,6 +1419,39 @@ sub problems_frame
 
     $t->param(submenu => \@submenu, title_suffix => res_str(525));
     $t->param(is_team => $my_is_team, is_practice => $contest->is_practice, de_list => \@de);
+}
+
+sub download_problem_from_history
+{
+    undef $t;
+
+    my $pid = $_[0];
+    my $hash = param('download');
+    my $fname = "./download/pr/problem_$hash.zip";
+
+    get_problem_zip($pid, cats_dir() . $fname, $hash) unless(-f $fname);
+
+    print redirect(-uri => $fname);
+    -1;
+}
+
+
+sub problems_history_frame {
+    my $pid = param("pid");
+    unless ($pid && ($is_jury || $contest->{show_packages}))
+    {
+        problems_frame();
+    }
+    my @history = get_problem_history($pid);
+    param("download") && return download_problem_from_history($pid);
+    my $i = 0;
+    for my $entry (@history) {
+        $entry->{href_download} = url_f('problems_history', pid => $pid, download => $entry->{hash});
+        $entry->{odd} = $i % 2;
+        $entry->{__counter__} = ++$i;
+    }
+    init_template("main_problems_history.htm");
+    return $t->param(history => \@history);
 }
 
 
@@ -3416,6 +3451,7 @@ sub interface_functions ()
         console_export => \&CATS::Console::export,
         console_graphs => \&CATS::Console::graphs,
         problems => \&problems_frame,
+        problems_history => \&problems_history_frame,
         problems_retest => \&problems_retest_frame,
         problem_select_testsets => \&problem_select_testsets,
         users => \&users_frame,

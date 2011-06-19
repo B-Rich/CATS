@@ -69,7 +69,7 @@ sub load
     {
         CATS::BinaryFile::load($fname, \$self->{zip_archive})
             or $self->error("open '$fname' failed: $!");
-                    
+
         $self->{zip} = Archive::Zip->new();
         $self->{zip}->read($fname) == AZ_OK
             or $self->error("read '$fname' failed -- probably not a zip archive");
@@ -88,7 +88,7 @@ sub load
         );
         $parser->parse($self->read_member($xml_members[0]));
     };
-
+    
     if ($@)
     {
         $dbh->rollback unless $self->{debug};
@@ -99,7 +99,7 @@ sub load
     {
         create_problem_repository($self->{id}) unless $self->{replace};
         put_problem_zip($self->{id}, $self->{zip});
-
+        
         $dbh->commit unless $self->{debug};
         $self->note('Success');
         return 0;
@@ -700,9 +700,9 @@ sub end_tag_Problem
     $c->bind_param($i++, $self->{problem}->{max_points});
     $c->bind_param($i++, $self->{id});
     $c->execute;
-    
+
     $self->insert_problem_content;
-}                   
+}
                     
 
 sub get_de_id

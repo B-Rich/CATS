@@ -373,6 +373,9 @@ my @fields_to_add = (
     );
 
 my @fields_to_delete_post = (
+    ['src' => 'sources'],
+    ['dump' => 'log_dumps'],
+    ['zip_archive' => 'problems'],
     );
 
 delfields(@fields_to_delete_pre);

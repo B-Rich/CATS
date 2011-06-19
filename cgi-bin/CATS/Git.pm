@@ -9,6 +9,7 @@ use Git;
 use CATS::DB;
 use CATS::Misc;
 use CATS::BinaryFile;
+use POSIX qw(strftime);
 
 my $cats_git_storage;
 
@@ -26,6 +27,7 @@ BEGIN {
                         cpa_from_source_info
                         put_problem_zip
                         get_problem_zip
+                        get_problem_history
                         diff_files
 
                         contest_repository_path
@@ -214,6 +216,23 @@ sub diff_files {
     }
 
     return @ret;
+}
+
+sub get_problem_history($) {
+    my $r = problem_repository($_[0]);
+    my @log = $r->command(log => '--pretty=%H&%aN&%aE&%at');
+    my @result = ();
+    for my $entry (@log)
+    {
+        my ($hash, $login, $email, $date) = split /&/, $entry;
+        push @result, {
+                       hash => $hash,
+                       login => $login,
+                       email => $email,
+                       date => strftime("%d.%m.%Y %H:%M:%S", localtime($date)),
+        };
+    }
+    return @result;
 }
 
 1;
