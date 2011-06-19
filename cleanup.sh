@@ -10,8 +10,8 @@ do
     (cd $cdir && git gc --aggressive --prune && git config receive.denyCurrentBranch ignore)
     rm -r $dir
     mv $cdir $dir
-    chown -R $HTTP_USER:$HTTP_USER $dir
 done
+chown -R .
 
 cd "$CATS_GIT_STORAGE/problems"
 for dir in `ls ./`
@@ -22,5 +22,5 @@ do
     (cd $cdir && git gc --aggressive --prune)
     rm -r $dir
     mv $cdir $dir
-    chown -R $HTTP_USER:$HTTP_USER $dir
 done
+chown -R .

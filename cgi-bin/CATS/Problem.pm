@@ -97,7 +97,7 @@ sub load
     }
     else
     {
-        create_problem_repository($self->{id}) if $self->{replace};
+        create_problem_repository($self->{id}) unless $self->{replace};
         put_problem_zip($self->{id}, $self->{zip});
 
         $dbh->commit unless $self->{debug};

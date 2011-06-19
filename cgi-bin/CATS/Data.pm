@@ -92,7 +92,7 @@ sub get_sources_info
     @req_ids = map +$_, grep $_ && /^\d+$/, @req_ids;
     @req_ids or return;
 
-    my $src = $p{get_source} ? ' S.hash, DE.syntax,' : '';
+    my $src = $p{get_source} ? ' S.revision, S.hash, DE.syntax,' : '';
 
     # SELECT ... WHERE ... req_id IN (1,2,3) тормозит в Firebird 1.5,
     # поэтому выполяем цикл вручную.

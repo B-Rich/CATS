@@ -13,7 +13,6 @@ use CGI qw(:standard);
 #use FCGI;
 
 
-use Algorithm::Diff;
 use Text::Aspell;
 use Data::Dumper;
 use Storable ();
@@ -40,7 +39,7 @@ use CATS::DevEnv;
 use CATS::Misc qw(:all);
 use CATS::Utils qw(coalesce escape_html url_function state_to_display param_on);
 use CATS::Data qw(:all);
-use CATS::Git qw(get_log_dump_from_hash put_source_in_repository get_problem_zip);
+use CATS::Git qw(get_log_dump_from_hash put_source_in_repository get_problem_zip diff_files cpa_from_source_info);
 use CATS::IP;
 use CATS::Problem;
 use CATS::RankTable;
@@ -1012,13 +1011,15 @@ sub problems_submit_std_solution
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, 0)~,
             {}, $rid, $uid, $pid, $cid, $cats::st_not_processed
         );
+        my ($revision, $hash) = put_source_in_repository($cid, $pid, $uid, $src);
 
         my $s = $dbh->prepare(qq~
-            INSERT INTO sources(req_id, de_id, src, fname) VALUES (?, ?, ?, ?)~);
+            INSERT INTO sources(req_id, de_id, revision, hash, fname) VALUES (?, ?, ?, ?, ?)~);
         $s->bind_param(1, $rid);
         $s->bind_param(2, $did);
-        $s->bind_param(3, $src, { ora_type => 113 } ); # blob
-        $s->bind_param(4, $fname);
+        $s->bind_param(3, $revision);
+        $s->bind_param(4, $hash);
+        $s->bind_param(5, $fname);
         $s->execute;
         
         $ok = 1;
@@ -2732,24 +2733,28 @@ sub diff_runs_frame
         s/\s*$// for @{$info->{lines}};
     }
     
-    my @diff = ();
-
-    my $SL = sub { $si->[$_[0]]->{lines}->[$_[1]] || '' }; 
+    my @raw_diff = diff_files(map +(cpa_from_source_info($_), $_->{revision}), @$si);
+    do {
+        $_ = shift @raw_diff;
+    } while (substr($_,0,2) ne "@@");
     
-    my $match = sub { push @diff, escape_html($SL->(0, $_[0])) . "\n"; };
-    my $only_a = sub { push @diff, span({class=>'diff_only_a'}, escape_html($SL->(0, $_[0])) . "\n"); };
-    my $only_b = sub { push @diff, span({class=>'diff_only_b'}, escape_html($SL->(1, $_[1])) . "\n"); };
-
-    Algorithm::Diff::traverse_sequences(
-        $si->[0]->{lines},
-        $si->[1]->{lines},
+    my @diff = ();
+    for my $line (@raw_diff)
+    {
+        my $l = substr($line, 0, 1);
+        $line = escape_html(substr($line, 1));
+        if ($l eq "-")
         {
-            MATCH     => $match,     # callback on identical lines
-            DISCARD_A => $only_a,    # callback on A-only
-            DISCARD_B => $only_b,    # callback on B-only
+            $line = span({class => 'diff_only_a'}, $line);
+        } 
+        elsif ($l eq "+")
+        {
+            $line = span({class => 'diff_only_b'}, $line);
         }
-    );
-
+        $line .= "\n";
+        push @diff, $line;
+    }
+    
     $t->param(
         sources_info => $si,
         diff_lines => [map {line => $_}, @diff]
