@@ -28,6 +28,7 @@ BEGIN {
                         put_problem_zip
                         get_problem_zip
                         get_problem_history
+                        escape_cmdline
                         diff_files
 
                         contest_repository_path
@@ -51,6 +52,12 @@ BEGIN {
 # cpa = contest problem account
 sub cpa_from_source_info {
     return ($_[0]{contest_id}, $_[0]{problem_id}, $_[0]{account_id});
+}
+
+sub escape_cmdline {
+    my $esc = shift;
+    $esc =~ s/\'/\\\'/g;
+    return $esc;
 }
 
 sub lock_repository($) {
@@ -85,6 +92,8 @@ sub put_problem_zip {
     $repo->command("add", "*");
     # We don't need a lock file
     $repo->command("rm", "-f", "--ignore-unmatch" , "--cached", "repository.lock");
+    $login = escape_cmdline($login);
+    $email = escape_cmdline($email);
     eval {
         $repo->command(commit => "--author='$login <$email>'", '-m', '$CATS::Misc::uid');
     }; # may remind unchanged
@@ -146,7 +155,8 @@ sub put_source_in_repository {
     my $hash = $repo->command("hash-object", "-w", $repo->wc_path . $fname);
     #hash_and_insert_object($repo->wc_path . $fname);#$repo->wc_path() . '/' . $fname);
     # dunno why, but Git.pm refuses to hash it, so screw it
-
+    $login = escape_cmdline($login);
+    $email = escape_cmdline($email);
     $repo->command("add", $fname);
     eval {
         $repo->command("commit", "--author='$login <$email>'",  '-m', '$aid');
@@ -220,11 +230,14 @@ sub diff_files {
 
 sub get_problem_history($) {
     my $r = problem_repository($_[0]);
-    my @log = $r->command(log => '--pretty=%H&%aN&%aE&%at');
+    my @hashes = $r->command(log => "--pretty=%H");
+    my @logins = $r->command(log => "--pretty=%aN");
+    my @emails = $r->command(log => "--pretty=%aE");
+    my @dates = $r->command(log => "--pretty=%at");
     my @result = ();
-    for my $entry (@log)
+    for(my $i = 0; $i < @hashes; ++$i)
     {
-        my ($hash, $login, $email, $date) = split /&/, $entry;
+        my ($hash, $login, $email, $date) = ($hashes[$i], $logins[$i], $emails[$i], $dates[$i]);
         push @result, {
                        hash => $hash,
                        login => $login,

@@ -154,9 +154,12 @@ sub convert_users_attempts {
                 $log_sha = $rep->hash_and_insert_object($rep_path . $logfname);
                 $rep->command(add => $logfname);
             }
+            $login = escape_cmdline($login);
+            $email = escape_cmdline($email);
             eval {
                 $rep->command(commit => "--author='$login <$email>'",  '-m', 'converted');
             };
+            print "Failed commit for $login, $email" if $@;
             # Ошибка может быть ровно в 1 случае -- индекс не изменился, просто игнорируем
             open(HEAD, "<", "${rep_path}.git/refs/heads/master");
             my $revision = <HEAD>;
@@ -288,8 +291,12 @@ sub convert_problems {
             $rep->command("rm", "-f", "--ignore-unmatch", "*");
             Archive::Zip->new($zname)->extractTree('', "$rep_path/");
             $rep->command("add", "*");
+            $author = escape_cmdline($author);
 
-            $rep->command(commit => "--author='$author <>'", "--date='$time'", '-m', 'converted');
+            eval {
+                $rep->command(commit => "--author='$author <>'", "--date='$time'", '-m', 'converted');
+            };
+            print "Failed commit for $author, <>" if $@;
         }
         ++$i;
     }
@@ -323,7 +330,7 @@ sub convert_problems {
             $name = File::Temp->new(
                 TEMPLATE => 'tempXXXXX',
                 DIR      => File::Spec->tmpdir,
-                SUFFIX   => '.dat',
+                SUFFIX   => '.zip',
             )->filename;
             $query =~ s/\?/$pid/;
             brute_blob_extraction $query, $name;
@@ -342,10 +349,12 @@ sub convert_problems {
         $repo->command("rm", "-f", "--ignore-unmatch", "*");
         $zip->extractTree('', "$rep_path/");
         $repo->command("add", "*");
+        $login = escape_cmdline($login);
+        $email = escape_cmdline($email);
         eval {
             $repo->command(commit => "--author='$login <$email>'", "--date='$date'", '-m', 'converted');
         };
-        print "Unchanged...\n" if $@;
+        print "Failed commit for $login, $email" if $@;
 
         unlink $name;
         ++$i;
