@@ -178,7 +178,7 @@ sub diff_files {
     {
         $r2 = contest_repository($cid2);
         $lock1 = lock_repository $r1;
-        $lock2 = lock_repository $r2;
+        $lock2 = lock_repository $r2 if $cid1 != $cid2;
         $r1->command(checkout => $revision1, $a);
         $r2->command(checkout => $revision2, $b);
     }
@@ -212,7 +212,7 @@ sub diff_files {
         $r1->command(checkout => "--force", "master");
         $r2->command(checkout => "--force", "master");
         unlock_repository $lock1;
-        unlock_repository $lock2;
+        unlock_repository $lock2 if $cid1 != $cid2;
     }
 
     return @ret;

@@ -42,7 +42,7 @@ use CATS::Data qw(:all);
 use CATS::Git qw(get_log_dump_from_hash put_source_in_repository 
     get_problem_zip diff_files cpa_from_source_info
     create_contest_repository contest_repository_path
-    get_problem_history);
+    get_problem_history get_source_from_hash);
 use CATS::IP;
 use CATS::Problem;
 use CATS::RankTable;
@@ -3270,8 +3270,10 @@ sub envelope_frame
 
 sub preprocess_source
 {
-    my $h = $_[0]->{hash} = {};
     my $collapse_indents = $_[1];
+    $_[0]->{src} = get_source_from_hash($cid, $_[0]->{hash});
+    my $h = $_[0]->{hash} = {};
+
     for (split /\n/, $_[0]->{src})
     {
         $_ = Encode::encode('WINDOWS-1251', $_);
@@ -3329,7 +3331,7 @@ sub similarity_frame
             WHERE contest_id = ?~,
         'account_id', { Slice => {} }, $cid);
     my $reqs = $dbh->selectall_arrayref(q~
-        SELECT R.id, R.account_id, S.src
+        SELECT R.id, R.account_id, S.hash
             FROM reqs R INNER JOIN sources S ON S.req_id = R.id
             WHERE R.contest_id = ? AND R.problem_id = ?~, { Slice => {} }, $cid, $pid);
 
