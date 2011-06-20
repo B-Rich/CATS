@@ -86,7 +86,7 @@ sub put_problem_zip {
     # We don't need a lock file
     $repo->command("rm", "-f", "--ignore-unmatch" , "--cached", "repository.lock");
     eval {
-        $repo->command(commit => '--allow-empty-message', "--author='$login <$email>'", '-m', '');
+        $repo->command(commit => "--author='$login <$email>'", '-m', '$CATS::Misc::uid');
     }; # may remind unchanged
     unlock_repository $lock;
 }
@@ -149,7 +149,7 @@ sub put_source_in_repository {
 
     $repo->command("add", $fname);
     eval {
-        $repo->command("commit", '--allow-empty-message', "--author='$login <$email>'",  '-m', '');
+        $repo->command("commit", "--author='$login <$email>'",  '-m', '$aid');
     };
     open(HEAD, "<", "$$repo{opts}{Repository}/refs/heads/master");
     my $revision = <HEAD>;

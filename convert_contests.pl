@@ -155,7 +155,7 @@ sub convert_users_attempts {
                 $rep->command(add => $logfname);
             }
             eval {
-                $rep->command(commit => '--allow-empty-message', "--author='$login <$email>'",  '-m', '');
+                $rep->command(commit => "--author='$login <$email>'",  '-m', 'converted');
             };
             # Ошибка может быть ровно в 1 случае -- индекс не изменился, просто игнорируем
             open(HEAD, "<", "${rep_path}.git/refs/heads/master");
@@ -289,7 +289,7 @@ sub convert_problems {
             Archive::Zip->new($zname)->extractTree('', "$rep_path/");
             $rep->command("add", "*");
 
-            $rep->command(commit => '--allow-empty-message', "--author='$author <>'", "--date='$time'", '-m', '');
+            $rep->command(commit => "--author='$author <>'", "--date='$time'", '-m', 'converted');
         }
         ++$i;
     }
@@ -343,7 +343,7 @@ sub convert_problems {
         $zip->extractTree('', "$rep_path/");
         $repo->command("add", "*");
         eval {
-            $repo->command(commit => '--allow-empty-message', "--author='$login <$email>'", "--date='$date'", '-m', '');
+            $repo->command(commit => "--author='$login <$email>'", "--date='$date'", '-m', 'converted');
         };
         print "Unchanged...\n" if $@;
 
