@@ -12,19 +12,18 @@ use CGI qw(:standard);
 #use CGI::Util qw(unescape escape);
 #use FCGI;
 
-
+use Algorithm::Diff;
 use Text::Aspell;
 use Data::Dumper;
 use Storable ();
 use Time::HiRes;
 use List::Util qw(max);
 
-my ($cats_lib_dir, $cats_git_storage);
+my $cats_lib_dir;
 BEGIN {
     local $/ = '/';
     $cats_lib_dir = $ENV{CATS_DIR} || '.';
-    $cats_git_storage = $ENV{CATS_GIT_STORAGE} || './cats-git';
-    chomp($cats_git_storage, $cats_lib_dir);
+    chomp($cats_lib_dir);
 
     $Data::Dumper::Terse = 1;
     $Data::Dumper::Indent = 1;
