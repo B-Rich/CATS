@@ -7,7 +7,6 @@ use IO::Handle;
 use Error qw(:try);
 use Git;
 use CATS::DB;
-use CATS::Misc;
 use CATS::BinaryFile;
 use POSIX qw(strftime);
 
