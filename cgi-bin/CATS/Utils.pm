@@ -22,7 +22,8 @@ use strict;
 use warnings;
 
 use Text::Balanced qw(extract_tagged extract_bracketed);
-use Digest::SHA1 qw(sha1_hex);
+use Digest::MD5;
+
 
 sub coalesce { defined && return $_ for @_ }
 
@@ -158,9 +159,8 @@ sub balance_tags
 
 
 sub source_hash
-{ # Это точная имитация хеширования BLOB-ов в Git
-    my $content  = Encode::encode_utf8($_[0]);
-    return sha1_hex('blob' . ' ' . length($content) . "\0" . $content);
+{
+    Digest::MD5::md5_hex(Encode::encode_utf8($_[0]));
 }
 
 

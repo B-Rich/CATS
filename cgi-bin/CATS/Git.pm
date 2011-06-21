@@ -54,7 +54,7 @@ BEGIN {
 
 # cpa = contest problem account
 sub cpa_from_source_info {
-    return $_[0]{"contest_id", "problem_id", "account_id"};
+    return @{$_[0]}{"contest_id", "problem_id", "account_id"};
 }
 
 sub get_head {

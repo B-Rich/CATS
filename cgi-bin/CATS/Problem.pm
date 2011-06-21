@@ -97,10 +97,16 @@ sub load
     }
     else
     {
-        create_problem_repository($self->{id}) unless $self->{replace};
-        put_problem_zip($self->{id}, $self->{zip});
-        
         $dbh->commit unless $self->{debug};
+
+        eval {
+            create_problem_repository($self->{id}) unless $self->{replace};
+            my $hash = put_problem_zip($self->{id}, $self->{zip});
+            $dbh->do(qq~UPDATE problems SET commit_hash = ? WHERE id = ?~, undef, $hash, $self->{id});
+            $dbh->commit;
+        };
+        $self->error("Put problem in git failed: $@") if $@;
+        
         $self->note('Success');
         return 0;
     }

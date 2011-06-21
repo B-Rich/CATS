@@ -848,8 +848,17 @@ sub download_problem
         SELECT hash FROM problems WHERE id = ?~, undef, $pid);
     my $already_hashed = ensure_problem_hash($pid, \$hash);
     my $fname = "./download/pr/problem_$hash.zip";
-
-    get_problem_zip($pid, cats_dir() . $fname) unless($already_hashed && -f $fname);
+    unless($already_hashed && -f $fname)
+    {
+        my ($zip) = eval { $dbh->selectrow_array(qq~
+            SELECT zip_archive FROM problems WHERE id = ?~, undef, $pid); };
+        if ($@)
+        {
+            print header(), $@;
+            return;
+        }
+        CATS::BinaryFile::save(cats_dir() . $fname, $zip);
+    }
 
     print redirect(-uri => $fname);
     -1;
@@ -975,12 +984,14 @@ sub problems_submit
 
     my ($revision, $hash) = put_source_in_repository($cid, $pid, $submit_uid, $src);
     my $s = $dbh->prepare(qq~
-        INSERT INTO sources(req_id, de_id, revision, fname, hash) VALUES (?,?,?,?,?)~);
+        INSERT INTO sources(req_id, de_id, src, revision, fname, hash, blob_hash) VALUES (?,?,?,?,?,?,?)~);
     $s->bind_param(1, $rid);
     $s->bind_param(2, $did);
-    $s->bind_param(3, $revision);
-    $s->bind_param(4, "$file");
-    $s->bind_param(5, $hash);
+    $s->bind_param(3, $src, { ora_type => 113 } ); # blob
+    $s->bind_param(4, $revision);
+    $s->bind_param(5, "$file");
+    $s->bind_param(6, $source_hash);
+    $s->bind_param(7, $hash);
     $s->execute;
     $dbh->commit;
 
@@ -1022,12 +1033,13 @@ sub problems_submit_std_solution
         my ($revision, $hash) = put_source_in_repository($cid, $pid, $uid, $src);
 
         my $s = $dbh->prepare(qq~
-            INSERT INTO sources(req_id, de_id, revision, hash, fname) VALUES (?, ?, ?, ?, ?)~);
+            INSERT INTO sources(req_id, de_id, src, revision, blob_hash, fname) VALUES (?, ?, ?, ?, ?, ?)~);
         $s->bind_param(1, $rid);
         $s->bind_param(2, $did);
-        $s->bind_param(3, $revision);
-        $s->bind_param(4, $hash);
-        $s->bind_param(5, $fname);
+        $s->bind_param(3, $src, { ora_type => 113 } ); # blob
+        $s->bind_param(4, $revision);
+        $s->bind_param(5, $hash);
+        $s->bind_param(6, $fname);
         $s->execute;
         
         $ok = 1;
@@ -2571,11 +2583,10 @@ sub get_contest_info
 
 sub get_log_dump
 {
-    my ($contest_id, $rid, $compile_error) = @_;
-    my ($hash) = $dbh->selectrow_array(qq~
-        SELECT hash FROM log_dumps WHERE req_id = ?~, {},
-                                       $rid) or return ();
-    my $dump = get_log_dump_from_hash($contest_id, $hash);
+    my ($rid, $compile_error) = @_;
+    my ($dump) = $dbh->selectrow_array(qq~
+        SELECT dump FROM log_dumps WHERE req_id = ?~, {},
+        $rid) or return ();
     $dump = Encode::decode('CP1251', $dump);
     $dump =~ s/(?:.|\n)+spawner\\sp\s((?:.|\n)+)compilation error\n/$1/m
         if $compile_error;
@@ -2613,7 +2624,7 @@ sub run_details_frame
             if $_->{contest_id} != $contest->{id};
         push @runs,
             $_->{state} == $cats::st_compilation_error ?
-              { get_log_dump($_->{contest_id}, $_->{req_id}, 1) }
+              { get_log_dump($_->{req_id}, 1) }
               : get_run_info($contest, $_->{req_id});
     }
     $t->param(sources_info => $si, runs => \@runs);
@@ -2738,7 +2749,7 @@ sub run_log_frame
     $t->param(sources_info => [$si]);
 
     source_links($si, 1);
-    $t->param(get_log_dump($si->{contest_id}, $rid));
+    $t->param(get_log_dump($rid));
 
     my $tests = $dbh->selectcol_arrayref(qq~
         SELECT rank FROM tests WHERE problem_id = ? ORDER BY rank~, {},
@@ -2774,28 +2785,24 @@ sub diff_runs_frame
         s/\s*$// for @{$info->{lines}};
     }
     
-    my @raw_diff = diff_files(map +(cpa_from_source_info($_), $_->{revision}), @$si);
-    do {
-        $_ = shift @raw_diff;
-    } while (substr($_,0,2) ne "@@");
-    
     my @diff = ();
-    for my $line (@raw_diff)
-    {
-        my $l = substr($line, 0, 1);
-        $line = escape_html(substr($line, 1));
-        if ($l eq "-")
-        {
-            $line = span({class => 'diff_only_a'}, $line);
-        } 
-        elsif ($l eq "+")
-        {
-            $line = span({class => 'diff_only_b'}, $line);
-        }
-        $line .= "\n";
-        push @diff, $line;
-    }
+
+    my $SL = sub { $si->[$_[0]]->{lines}->[$_[1]] || '' }; 
     
+    my $match = sub { push @diff, escape_html($SL->(0, $_[0])) . "\n"; };
+    my $only_a = sub { push @diff, span({class=>'diff_only_a'}, escape_html($SL->(0, $_[0])) . "\n"); };
+    my $only_b = sub { push @diff, span({class=>'diff_only_b'}, escape_html($SL->(1, $_[1])) . "\n"); };
+
+    Algorithm::Diff::traverse_sequences(
+        $si->[0]->{lines},
+        $si->[1]->{lines},
+        {
+            MATCH     => $match,     # callback on identical lines
+            DISCARD_A => $only_a,    # callback on A-only
+            DISCARD_B => $only_b,    # callback on B-only
+        }
+    );
+
     $t->param(
         sources_info => $si,
         diff_lines => [map {line => $_}, @diff]
@@ -3269,9 +3276,8 @@ sub envelope_frame
 
 sub preprocess_source
 {
-    my $collapse_indents = $_[1];
-    $_[0]->{src} = get_source_from_hash($cid, $_[0]->{hash});
     my $h = $_[0]->{hash} = {};
+    my $collapse_indents = $_[1];
 
     for (split /\n/, $_[0]->{src})
     {
@@ -3330,7 +3336,7 @@ sub similarity_frame
             WHERE contest_id = ?~,
         'account_id', { Slice => {} }, $cid);
     my $reqs = $dbh->selectall_arrayref(q~
-        SELECT R.id, R.account_id, S.hash
+        SELECT R.id, R.account_id, S.src
             FROM reqs R INNER JOIN sources S ON S.req_id = R.id
             WHERE R.contest_id = ? AND R.problem_id = ?~, { Slice => {} }, $cid, $pid);
 

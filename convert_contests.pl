@@ -13,6 +13,8 @@ use File::Spec;
 use List::Util qw(max);
 use POSIX qw(strftime);
 use Encode;
+use Carp;
+use Error qw(:try);
 
 use Git;
 use Archive::Zip;
@@ -53,7 +55,7 @@ sub hasfield {
 sub addfield {
     my ($table, $field) = @_;
     unless (hasfield($table, $field)) {
-        my $rows_affected = $dbh->do("ALTER TABLE $table ADD $field CHAR(40)"); # размер хеша SHA1 -- 40 символов
+        my $rows_affected = $dbh->do("ALTER TABLE $table ADD $field CHAR(40) DEFAULT NULL"); # размер хеша SHA1 -- 40 символов
         die "failed to create column $field in table $table" unless defined $rows_affected;
         print "created column $field in table $table\n";
     }
@@ -90,13 +92,14 @@ sub makedir {
 
 sub convert_users_attempts {
     makedir("$cats_git_storage/contests");
+    makedir("$cats_git_storage/contests/locks");
     my ($ccount) = $dbh->selectrow_array("SELECT COUNT(*) FROM contests");
     my $ids_q = $dbh->prepare("SELECT id FROM contests");
     $ids_q->execute;
     my $i = 1;
     while(my ($cid) =  $ids_q->fetchrow_array) {
         print "[$i/$ccount] Converting contest #$cid\n";
-        create_contest_repository($cid);
+        create_contest_repository($cid) unless -d contest_repository_path($cid);
         my $rep = contest_repository($cid);
         my $rep_path = $rep->wc_path;
         $rep->command('config', 'receive.denyCurrentBranch', 'ignore');
@@ -105,14 +108,14 @@ sub convert_users_attempts {
             UNION
             SELECT problem_id FROM reqs WHERE contest_id=?", undef, $cid, $cid);
         foreach my $pid (@$problems_id_ref) {
-            mkdir "$rep_path/$pid";
+            makedir("$rep_path/$pid");
         }
 
         my $requests_q = $dbh->prepare("SELECT r.id, a.id, a.login, a.email, s.src, r.problem_id
             from sources s
             inner join reqs r on s.req_id=r.id
             inner join accounts a on r.account_id=a.id
-            where r.contest_id=?
+            where r.contest_id=? and s.blob_hash is NULL
             order by r.submit_time");
         $requests_q->execute($cid);
         while (my ($rid, $uid, $login, $email, $src, $pid) = $requests_q->fetchrow_array)
@@ -128,7 +131,7 @@ sub convert_users_attempts {
             close SRC;
 
             my $log;
-            my $query = "select l.dump from reqs r inner join log_dumps l on r.id=l.req_id where r.id=?";
+            my $query = "select l.dump from reqs r inner join log_dumps l on r.id=l.req_id where r.id=? and l.blob_hash is NULL";
             eval { # Случай, когда может быть очень большой BLOB
                 ($log) = $dbh->selectrow_array($query, undef, $rid);
             };
@@ -156,17 +159,15 @@ sub convert_users_attempts {
             }
             $login = escape_cmdline($login);
             $email = escape_cmdline($email);
-            eval {
-                $rep->command(commit => "--author='$login <$email>'",  '-m', 'converted');
-            };
-            print "Failed commit for $login, $email" if $@;
+            commit($rep, "--author='$login <$email>'",  '-m', "$uid");
+            #print "Failed commit for $login, $email" if $@;
             # Ошибка может быть ровно в 1 случае -- индекс не изменился, просто игнорируем
             open(HEAD, "<", "${rep_path}.git/refs/heads/master");
             my $revision = <HEAD>;
             close HEAD;
 
-            $dbh->do("UPDATE sources SET revision=?, hash=? WHERE req_id=?", undef, $revision, $src_sha, $rid);
-            $dbh->do("UPDATE log_dumps SET hash=? WHERE req_id=?", undef, $log_sha, $rid) if $log;
+            $dbh->do("UPDATE sources SET revision=?, blob_hash=? WHERE req_id=?", undef, $revision, $src_sha, $rid);
+            $dbh->do("UPDATE log_dumps SET blob_hash=? WHERE req_id=?", undef, $log_sha, $rid) if $log;
             $dbh->commit or die $dbh->errstr;
         }
         ++$i;
@@ -260,7 +261,8 @@ sub char_handler
 
 sub convert_problems {
     makedir("$cats_git_storage/problems");
-    my $ids_q = $dbh->prepare("SELECT id, title FROM problems");
+    makedir("$cats_git_storage/problems/locks");
+    my $ids_q = $dbh->prepare("SELECT id, title FROM problems WHERE commit_hash is NULL");
     $ids_q->execute;
     while(my ($pid, $title) =  $ids_q->fetchrow_array)
     {
@@ -293,22 +295,20 @@ sub convert_problems {
             $rep->command("add", "*");
             $author = escape_cmdline($author);
 
-            eval {
-                $rep->command(commit => "--author='$author <>'", "--date='$time'", '-m', 'converted');
-            };
-            print "Failed commit for $author, <>" if $@;
+            commit($rep, "--author='$author <>'", "--date='$time'", '-m', "Archive");
+            #print "Failed commit for $author, <>" if $@;
         }
         ++$i;
     }
     ($count) = $dbh->selectrow_array("SELECT COUNT(*) FROM PROBLEMS");
-    my $q = $dbh->prepare("SELECT p.id, p.upload_date, a.login, a.email FROM problems p
-        LEFT JOIN accounts a ON a.id=p.last_modified_by");
+    my $q = $dbh->prepare("SELECT p.id, a.id, p.upload_date, a.login, a.email FROM problems p
+        LEFT JOIN accounts a ON a.id=p.last_modified_by WHERE p.commit_hash is NULL");
     $q->execute;
 
     print "Exporting actual problems...\n";
     $i = 1;
 
-    while(my ($pid, $date, $login, $email) =  $q->fetchrow_array)
+    while(my ($pid, $uid, $date, $login, $email) =  $q->fetchrow_array)
     {
         print "[$i/$count] Actual problem export...\n";
         $login ||= "";
@@ -351,10 +351,13 @@ sub convert_problems {
         $repo->command("add", "*");
         $login = escape_cmdline($login);
         $email = escape_cmdline($email);
-        eval {
-            $repo->command(commit => "--author='$login <$email>'", "--date='$date'", '-m', 'converted');
-        };
-        print "Failed commit for $login, $email" if $@;
+        $uid ||= "unknown";
+        commit($repo, "--author='$login <$email>'", "--date='$date'", '-m', "$uid");
+        my $revision = get_head($repo);
+        $dbh->do(qq~UPDATE problems SET commit_hash = ? WHERE id = ?~, undef, $revision, $pid);
+        $dbh->commit;
+
+        #print "Failed commit for $login, $email" if $@;
 
         unlink $name;
         ++$i;
@@ -373,12 +376,14 @@ $dbh->{ib_softcommit} = 1;
 
 my @fields_to_delete_pre = (
     ['hash' => 'sources'],
+    ['hash' => 'problems'],
     );
 
 my @fields_to_add = (
     ['revision' => 'sources'],
-    ['hash' => 'sources'],
-    ['hash' => 'log_dumps'],
+    ['blob_hash' => 'sources'],
+    ['blob_hash' => 'log_dumps'],
+    ['commit_hash' => 'problems'],
     );
 
 my @fields_to_delete_post = (
@@ -387,7 +392,10 @@ my @fields_to_delete_post = (
     ['zip_archive' => 'problems'],
     );
 
-delfields(@fields_to_delete_pre);
+#delfields(@fields_to_delete_pre);
 addfields(@fields_to_add);
 convert_fields;
-delfields(@fields_to_delete_post);
+#my $r = contest_repository(502210);
+#print $r->wc_path;
+#commit($r, "--author='test <>'", '-m', 'test');
+#delfields(@fields_to_delete_post);
